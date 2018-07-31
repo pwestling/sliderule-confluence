@@ -1,8 +1,17 @@
-import Html exposing (beginnerProgram, Html)
-import Element exposing (..)
-import Element.Events exposing (..)
-import Element.Attributes exposing (..)
-import Style exposing(..)
+import Html exposing (beginnerProgram, Html, text, div, span, form)
+import Material.Layout as Layout
+import Material.Snackbar as Snackbar
+import Material.Icon as Icon
+import Material.Color as Color
+import Material.Menu as Menu
+import Material.Dialog as Dialog
+import Material.Button as Button
+import Material.Options as Options exposing (css, cs, when)
+import Material.Scheme
+import Material
+import Material.Snackbar as Snackbar
+
+
 
 main : Program Never Model Msg
 main =
@@ -67,7 +76,11 @@ type alias Model =  {
     currentTurn : Int,
     tradeInProgress : Maybe Trade,
     inProgressTermGiven : Maybe TradeTerm,
-    inProgressTermRecieved : Maybe TradeTerm
+    inProgressTermRecieved : Maybe TradeTerm,
+
+    -- UI stuff
+
+    mdl : Material.Model
 }
 
 emptyModel : Model
@@ -81,13 +94,18 @@ emptyModel = {
     currentTurn = 0,
     tradeInProgress = Nothing, 
     inProgressTermGiven = Nothing,
-    inProgressTermRecieved = Nothing}
+    inProgressTermRecieved = Nothing,
+    
+    -- UI stuff
+
+    mdl = Material.model}
 
 type TradeDirection = Given | Recieved
 
 -- UPDATE
 
 type Msg = NextTurn 
+    | Mdl (Material.Msg Msg)
     | DeleteTrade Trade
     | CompleteTrade
     | StartTrade
@@ -120,52 +138,30 @@ type Style =
 type Variation = 
       DefaultVar
 
-stylesheet =
-    Style.styleSheet
-        [ 
-        ]
-
-
 -- VIEW
 
 view : Model -> Html Msg
-view model = Element.layout stylesheet <|
-   row AppStyle  [] [
-   column TradePaneStyle [width fill] [
-    currentTurnDiv (model.currentTurn),
-    column TradesStyle [] (tradeView model.trades)
-  ],
-  el InfoPaneStyle [width fill] (text "Info")]
-   
-currentTurnDiv : Turn -> Element Style Variation Msg
-currentTurnDiv turn = el TurnCounterStyle [] (text ("Turn: " ++ (toString turn)))
+view model =
+    Material.Scheme.top <|
+        Layout.render Mdl
+                model.mdl
+                [ Layout.fixedHeader
+                , Layout.fixedDrawer
+                , Options.css "display" "flex !important"
+                , Options.css "flex-direction" "row"
+                , Options.css "align-items" "center"
+                ]
+                { header = [ viewHeader model ]
+                , drawer = [ drawerHeader model, viewDrawer model ]
+                , tabs = ( [], [] )
+                , main =
+                    [ viewBody model
+                    , viewSource model
+                    ] 
+                }
 
-tradeView : List Trade -> List (Element Style Variation Msg)
-tradeView trades = List.map tradeHtml trades
-
-tradeHtml : Trade -> Element Style Variation Msg
-tradeHtml trade = 
-    let
-        tradeFactionString = getFactionName trade.faction
-    in
-       row (TradeStyle trade.faction) [] [
-               el (FactionNameStyle trade.faction) [padding 10, width (percent 20)] (text tradeFactionString),
-               el TermText [paddingTop 10, alignLeft, width (percent 10)] (text "You Paid"),
-               el TermsStyle [padding 10, width (percent 25)] (termsDiv "terms-given" (trade.termsGiven)),
-               el TermText [paddingTop 10, alignLeft, width (percent 10)] (text "You Got"),
-               el TermsStyle [padding 10, width (percent 25)] (termsDiv "terms-recieved" (trade.termsRecieved)),
-               button DeleteTradeButtonStyle [onClick (DeleteTrade trade), padding 10, width (percent 10)] (text "Delete")
-           ] 
-
-termsDiv : String -> List TradeTerm -> Element Style Variation Msg
-termsDiv class terms = wrappedColumn TermsStyle [] (List.map termDiv terms)
-
-termDiv : TradeTerm -> Element Style Variation Msg
-termDiv term = 
-    let termText = case (term.item) of
-        TIResource resource -> toString resource.amount ++ " " ++ 
-                               toString resource.rType ++ " on turn " ++ 
-                               toString (term.paidAt) 
-        Custom customTrade -> customTrade
-    in el TradeTermStyle [spacing 5] (text termText)
-    
+viewHeader model = text "Header"
+drawerHeader model = text "Drawer Header"
+viewDrawer model = text "View Drawer"
+viewSource model = text "View Source"
+viewBody model = text "View Body"
