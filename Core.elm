@@ -227,29 +227,35 @@ type alias Model =  {
     nextTrade : NextTradeState
 }
 
+-- emptyModel : Model
+-- emptyModel = {
+--     trades = [ { faction = EniEt,
+--                  termsGiven = [{ item = TIResource (mkResource 3 Green SmallCube), paidAt = 2},
+--                                { item = TIResource (mkResource 3 Green SmallCube), paidAt = 2},
+--                                { item = TIResource (mkResource 1 Black LargeCube), paidAt = 2},
+--                                {item = TIResource (mkResource 10 Ultra Octa), paidAt = 2}],
+--                  termsRecieved = [{item = TIResource (mkResource 2 White SmallCube), paidAt = 2},
+--                                    {item = Custom "Lend 3->4 Large Converter", paidAt = 2},
+--                                    {item = TIResource (mkResource 1 Any SmallCube), paidAt = 2},
+--                                    {item = TIResource (mkResource 1 Any LargeCube), paidAt = 2},
+--                                    {item = TIResource (mkResource 1 Wild LargeCube), paidAt = 2}], 
+--                 turnExecuted = 1},
+--                 { faction = Zeth,
+--                  termsGiven = [{ item = TIResource (mkResource 3 Green SmallCube), paidAt = 2},
+--                                { item = TIResource (mkResource 1 Black LargeCube), paidAt = 2},
+--                                {item = TIResource (mkResource 10 Ultra Octa), paidAt = 2}],
+--                  termsRecieved = [{item = TIResource (mkResource 2 White SmallCube), paidAt = 2},
+--                                    {item = Custom "Lend 3->4 Large Converter", paidAt = 2},
+--                                    {item = TIResource (mkResource 1 Any SmallCube), paidAt = 2},
+--                                    {item = TIResource (mkResource 1 Any LargeCube), paidAt = 2},
+--                                    {item = TIResource (mkResource 1 Wild LargeCube), paidAt = 2}],
+--                 turnExecuted = 1}],
+--     resources = [], 
+--     currentTurn = 1,
+--     nextTrade = None}
 emptyModel : Model
 emptyModel = {
-    trades = [ { faction = EniEt,
-                 termsGiven = [{ item = TIResource (mkResource 3 Green SmallCube), paidAt = 2},
-                               { item = TIResource (mkResource 3 Green SmallCube), paidAt = 2},
-                               { item = TIResource (mkResource 1 Black LargeCube), paidAt = 2},
-                               {item = TIResource (mkResource 10 Ultra Octa), paidAt = 2}],
-                 termsRecieved = [{item = TIResource (mkResource 2 White SmallCube), paidAt = 2},
-                                   {item = Custom "Lend 3->4 Large Converter", paidAt = 2},
-                                   {item = TIResource (mkResource 1 Any SmallCube), paidAt = 2},
-                                   {item = TIResource (mkResource 1 Any LargeCube), paidAt = 2},
-                                   {item = TIResource (mkResource 1 Wild LargeCube), paidAt = 2}], 
-                turnExecuted = 1},
-                { faction = Zeth,
-                 termsGiven = [{ item = TIResource (mkResource 3 Green SmallCube), paidAt = 2},
-                               { item = TIResource (mkResource 1 Black LargeCube), paidAt = 2},
-                               {item = TIResource (mkResource 10 Ultra Octa), paidAt = 2}],
-                 termsRecieved = [{item = TIResource (mkResource 2 White SmallCube), paidAt = 2},
-                                   {item = Custom "Lend 3->4 Large Converter", paidAt = 2},
-                                   {item = TIResource (mkResource 1 Any SmallCube), paidAt = 2},
-                                   {item = TIResource (mkResource 1 Any LargeCube), paidAt = 2},
-                                   {item = TIResource (mkResource 1 Wild LargeCube), paidAt = 2}],
-                turnExecuted = 1}],
+    trades = [],
     resources = [], 
     currentTurn = 1,
     nextTrade = None}
@@ -718,7 +724,7 @@ resourceText kind size = case (kind, size) of
 
 resourceDrawing : ResourceSize -> ResourceKind -> Element Style Variation Msg
 resourceDrawing size kind = case (size,kind) of
-    (_, Ship) ->   image ShipImageStyle [width (px 22), height (px 22)] {src = "spaceship.png", caption = "spaceship"}
+    (_, Ship) ->   image ShipImageStyle [width (px 22), height (px 22)] {src = "resources/spaceship.png", caption = "spaceship"}
     (SmallCube, _)   -> html (cubeSvg 10 10 (resourceColor kind) (resourceText kind size))
     (LargeCube, _)   -> html (cubeSvg 15 13 (resourceColor kind) (resourceText kind size))
     (Octa, _) -> html (octagonSvg 8 12 (resourceColor kind) (resourceText kind size))
