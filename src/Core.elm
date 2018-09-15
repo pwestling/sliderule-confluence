@@ -11,11 +11,9 @@ import Style.Border as Border
 import Style.Color as Color
 import Style.Shadow as Shadow
 import Style.Font as Font
-import Color exposing (..)
 import Maybe as Maybe
 import Svg exposing (Svg)
 import Svg.Attributes as Attributes
-import Color.Convert exposing (..)
 import Polygon2d exposing (Polygon2d)
 import Point2d exposing (Point2d)
 import Geometry.Svg as Geo
@@ -360,7 +358,7 @@ inProgressTradeView model = case (model.nextTrade) of
                 el ContainerStyle [width (percent 10), height fill] 
                     (button AddButtonStyle [width fill, onClick (CompleteTrade)] (text "Complete"))
             ] 
-    ]
+       ]
     None ->  button NewTradeButton 
                     [center, onClick StartTrade, width (px 100), height (px 40), padding 10] 
                     (text "New Trade")
@@ -412,14 +410,14 @@ isIPC ipi = case ipi of
 addTermView : Model -> TradeDirection -> InProgressTradeTerm -> Element Style Variation Msg
 addTermView model dir term = 
     let controls = case term.item of
-        IPR r -> resourceTermControls model dir r
-        IPC s -> [ 
+          IPR r -> resourceTermControls model dir r
+          IPC s -> [ 
             Input.text TextFieldStyle [width fill, height (px 40)] {
              onChange = SetCustomTerm dir,
              value = s,
              label = Input.hiddenLabel "Custom Trade",
              options = []
-         }]
+           }]
     in row AddTermStyle [center, verticalCenter] (
          controls ++
          [el TermText [verticalCenter, width (px 20)] (text "@"),
