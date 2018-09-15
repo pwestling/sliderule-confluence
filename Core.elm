@@ -283,7 +283,7 @@ youAreOwed model = obligations model .termsRecieved
 
 type Msg = 
       NoOp
-    | NextTurn 
+    | ChangeTurn Int 
     | DeleteTrade Trade
     | DeleteTradeInProgress
     | CompleteTrade
@@ -307,7 +307,7 @@ update msg model =
 updatePure : Msg -> Model -> Model
 updatePure msg model = 
   case msg of
-    NextTurn -> {model | currentTurn = min 6 (model.currentTurn + 1)}
+    ChangeTurn i -> {model | currentTurn = max 1 (min 6 (model.currentTurn + i))}
     DeleteTrade t -> { model | trades = List.filter (\tr -> t /= tr) (model.trades)}
     StartTrade -> {model | nextTrade = ChooseFaction}
     SelectTradeFaction f -> {model | nextTrade = InProgress 
@@ -489,7 +489,10 @@ view model = Element.viewport stylesheet <|
         column ContainerStyle [spacing 10] [
             row SubHeader [width fill, height (px 30)] [
                           currentTurnDiv (model.currentTurn), 
-                          (el ContainerStyle [width fill] (button ToggleButtonStyle [alignRight, onClick NextTurn, padding 5, height fill] (text "Next Turn")))],
+                          (el ContainerStyle [width fill] 
+                            (row ContainerStyle [width fill,alignRight, spacing 2] 
+                            [(button ToggleButtonStyle [alignRight, onClick (ChangeTurn -1), padding 5, height fill] (text "Prev Turn")),
+                            (button ToggleButtonStyle [alignRight, onClick (ChangeTurn 1), padding 5, height fill] (text "Next Turn"))]))],
             inProgressTradeView model,
             column TradesStyle [spacing 1] (tradeView model.trades)
   ]),
