@@ -1,3 +1,5 @@
-module Sliderule.TradeParser exposing (..)
+module Sliderule.TradeParser exposing (Not(..))
 
-type Not = Not
+
+type Not
+    = Not

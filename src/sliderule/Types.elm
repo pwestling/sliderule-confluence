@@ -1,4 +1,4 @@
-module Sliderule.Types exposing (..)
+module Sliderule.Types exposing (CustomTrade, Faction(..), InProgressItem(..), InProgressResource, InProgressTrade, InProgressTradeTerm, ItemOwed, Model, Msg(..), NextTradeState(..), Resource, ResourceKind(..), ResourceMode(..), ResourceSize(..), ResourceSpec, Trade, TradeDirection(..), TradeItem(..), TradeTerm, Turn, appendGiven, appendRecieved, defaultTerm, finishTerm, finishTermForDir, finishTrade, getFactionName, getTerm, isFutureTrade, liftToState, mkResource, notGreater, notNegative, notZero, obligations, parseTurn, setTermValidation, sizeOf, toTrade, toggleTerm, transformTerm, updateAmount, updateCustom, updateIPRMenu, updateInProgressResource, updateKindMenu, updateTurn, validateAmount, youAreOwed, youOwe)
 
 import Element.Input as Input
 import Sliderule.Util exposing (..)
@@ -31,8 +31,20 @@ getFactionName f =
         Imdril ->
             "Im'dril"
 
-        other ->
-            toString other
+        Caylion ->
+            "Caylion"
+
+        Faderan ->
+            "Faderan"
+
+        Unity ->
+            "Unity"
+
+        Zeth ->
+            "Zeth"
+
+        Yengii ->
+            "Yengii"
 
 
 type alias Turn =
@@ -266,14 +278,22 @@ updateKindMenu : TradeDirection -> Input.SelectMsg ResourceSpec -> NextTradeStat
 updateKindMenu dir msg =
     updateInProgressResource dir (updateIPRMenu msg)
 
+parseStringToInt : String -> Result String Int
+parseStringToInt s = 
+    case String.toInt s of
+        Just i ->
+            Ok i
+
+        Nothing ->
+            Err "Amount must be an integer"
 
 validateAmount : String -> Result String Int
 validateAmount amount =
     case String.toInt amount of
-        Ok i ->
+        Just i ->
             validate (notNegative "Amount") << validate (notZero "Amount") <| Ok i
 
-        Err s ->
+        Nothing ->
             Err "Amount must be an integer"
 
 
@@ -326,10 +346,10 @@ parseTurn : Model -> String -> Result String Int
 parseTurn model turnString =
     (case String.startsWith "+" turnString of
         True ->
-            Result.map (\t -> t + model.currentTurn) (String.toInt turnString)
+            Result.map (\t -> t + model.currentTurn) (parseStringToInt turnString)
 
         False ->
-            String.toInt turnString
+            parseStringToInt turnString
     )
         |> validate (notNegative "Turn")
         |> validate (notGreater "Turn" 6)

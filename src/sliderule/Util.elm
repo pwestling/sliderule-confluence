@@ -1,10 +1,21 @@
 module Sliderule.Util exposing (..)
+import Color018 as Rgb
+import Style as Color 
+import Style.Color as SC
 
-import Color018 exposing (..)
+toStyle : Rgb.Color -> Color.Color
+toStyle rgb = let record = Rgb.toRgb rgb in 
+                (Color.rgb (toFloat (record.red)) (toFloat (record.green)) (toFloat (record.blue)))
 
 sToI : String -> Maybe Int
-sToI = String.toInt
-   
+sToI =
+    String.toInt
+
+toString : Int -> String
+toString = String.fromInt
+
+toStringF : Float -> String
+toStringF = String.fromFloat
 
 validate : (a -> Maybe b) -> Result b a -> Result b a
 validate pred r =
@@ -125,7 +136,7 @@ splitWhile pred list =
             ( [], [] )
 
 
-partition : (a -> b) -> List a -> List (b, (List a))
+partition : (a -> b) -> List a -> List ( b, List a )
 partition group list =
     case list of
         a :: l ->
@@ -139,8 +150,16 @@ partition group list =
             []
 
 
-colorToCssRgb : Color -> String
-colorToCssRgb color = let rgb = toRgb color in 
-                      ("rgb(" ++ String.fromInt (rgb.red) ++ ", " ++ 
-                                 String.fromInt (rgb.green) ++ ", " ++ 
-                                 String.fromInt (rgb.blue) ++ ")")
+colorToCssRgb : Rgb.Color -> String
+colorToCssRgb color =
+    let
+        rgb =
+            Rgb.toRgb color
+    in
+    "rgb("
+        ++ String.fromInt rgb.red
+        ++ ", "
+        ++ String.fromInt rgb.green
+        ++ ", "
+        ++ String.fromInt rgb.blue
+        ++ ")"
