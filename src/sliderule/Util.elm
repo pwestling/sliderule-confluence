@@ -5,7 +5,7 @@ import Style.Color as SC
 
 toStyle : Rgb.Color -> Color.Color
 toStyle rgb = let record = Rgb.toRgb rgb in 
-                (Color.rgb (toFloat (record.red)) (toFloat (record.green)) (toFloat (record.blue)))
+                (Color.rgb (toFloat (record.red) / 255) (toFloat (record.green) / 255) (toFloat (record.blue) / 255))
 
 sToI : String -> Maybe Int
 sToI =

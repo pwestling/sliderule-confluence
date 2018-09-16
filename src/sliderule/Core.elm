@@ -13,7 +13,7 @@ import Point2d exposing (Point2d)
 import Polygon2d exposing (Polygon2d)
 import Sliderule.Util exposing (..)
 import Sliderule.Types exposing (..)
-import Style exposing (..)
+import Style as Style
 import Style.Border as Border
 import Style.Color as Color
 import Style.Font as Font
@@ -181,6 +181,12 @@ type Variation
 
 black = Rgb.black
 white = Rgb.white
+
+style = Style.style
+hover = Style.hover
+
+rgb : Int -> Int -> Int -> Style.Color
+rgb r g b = Style.rgb (toFloat r/255) (toFloat g/255) (toFloat b/255)
 
 stylesheet =
     Style.styleSheet
