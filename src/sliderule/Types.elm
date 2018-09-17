@@ -1,4 +1,4 @@
-module Sliderule.Types exposing (CustomTrade, Faction(..), InProgressItem(..), InProgressResource, InProgressTrade, InProgressTradeTerm, ItemOwed, Model, Msg(..), NextTradeState(..), Resource, ResourceKind(..), ResourceMode(..), ResourceSize(..), ResourceSpec, Trade, TradeDirection(..), TradeItem(..), TradeTerm, Turn, appendGiven, appendRecieved, defaultTerm, finishTerm, finishTermForDir, finishTrade, getFactionName, getTerm, isFutureTrade, liftToState, mkResource, notGreater, notNegative, notZero, obligations, parseTurn, setTermValidation, sizeOf, toTrade, toggleTerm, transformTerm, updateAmount, updateCustom, updateIPRMenu, updateInProgressResource, updateKindMenu, updateTurn, validateAmount, youAreOwed, youOwe)
+module Sliderule.Types exposing (CustomTrade, Faction(..), ItemOwed, Model, Msg(..), Resource, ResourceKind(..), ResourceMode(..), ResourceSize(..), ResourceSpec, Trade, TradeDirection(..), TradeItem(..), TradeTerm, Turn, getFactionName, isFutureTrade, mkResource, obligations, sizeOf, youAreOwed, youOwe)
 
 import Element.Input as Input
 import Sliderule.Util exposing (..)
@@ -55,6 +55,7 @@ type ResourceSize
     = SmallCube
     | LargeCube
     | Octa
+    | NoSize
 
 
 type ResourceKind
@@ -69,6 +70,7 @@ type ResourceKind
     | Wild
     | Any
     | Ship
+    | NoKind
 
 
 type ResourceMode
@@ -88,35 +90,35 @@ type alias Resource =
     }
 
 
-sizeOf : ResourceKind -> Maybe ResourceSize
+sizeOf : ResourceKind -> ResourceSize
 sizeOf kind =
     case kind of
         Green ->
-            Just SmallCube
+            SmallCube
 
         Brown ->
-            Just SmallCube
+            SmallCube
 
         White ->
-            Just SmallCube
+            SmallCube
 
         Black ->
-            Just LargeCube
+            LargeCube
 
         Yellow ->
-            Just LargeCube
+            LargeCube
 
         Blue ->
-            Just LargeCube
+            LargeCube
 
         Ultra ->
-            Just Octa
+            Octa
 
         VP ->
-            Just Octa
+            Octa
 
         _ ->
-            Nothing
+            NoSize
 
 
 mkResource : Int -> ResourceKind -> ResourceSize -> Resource
@@ -139,296 +141,12 @@ type alias TradeTerm =
     }
 
 
-type alias InProgressResource =
-    { kindSelector : Input.SelectWith ResourceSpec Msg
-    , amount : String
-    }
-
-
-type InProgressItem
-    = IPR InProgressResource
-    | IPC CustomTrade
-
-
-type alias InProgressTradeTerm =
-    { paidAt : String
-    , direction : TradeDirection
-    , item : InProgressItem
-    , validationMsg : Maybe String
-    }
-
-
 type alias Trade =
     { faction : Faction
     , termsGiven : List TradeTerm
     , termsRecieved : List TradeTerm
     , turnExecuted : Turn
     }
-
-
-type alias InProgressTrade =
-    { tradeInProgress : Trade
-    , inProgressTermGiven : InProgressTradeTerm
-    , inProgressTermRecieved : InProgressTradeTerm
-    }
-
-
-getTerm : TradeDirection -> InProgressTrade -> InProgressTradeTerm
-getTerm dir ipt =
-    case dir of
-        Given ->
-            ipt.inProgressTermGiven
-
-        Recieved ->
-            ipt.inProgressTermRecieved
-
-
-transformTerm : TradeDirection -> (InProgressTradeTerm -> InProgressTradeTerm) -> InProgressTrade -> InProgressTrade
-transformTerm dir fn ipt =
-    case dir of
-        Given ->
-            { ipt | inProgressTermGiven = fn ipt.inProgressTermGiven }
-
-        Recieved ->
-            { ipt | inProgressTermRecieved = fn ipt.inProgressTermRecieved }
-
-
-liftToState : (InProgressTrade -> InProgressTrade) -> NextTradeState -> NextTradeState
-liftToState fn nts =
-    case nts of
-        None ->
-            nts
-
-        ChooseFaction ->
-            nts
-
-        InProgress ipt ->
-            InProgress (fn ipt)
-
-
-defaultTerm : Turn -> TradeDirection -> InProgressTradeTerm
-defaultTerm turn dir =
-    { item = IPR { amount = "0", kindSelector = Input.dropMenu Nothing (SetResourceKind dir) }
-    , paidAt = "+0"
-    , direction = dir
-    , validationMsg = Nothing
-    }
-
-
-toggleTerm : TradeDirection -> NextTradeState -> NextTradeState
-toggleTerm dir =
-    liftToState
-        (transformTerm dir
-            (\ign ->
-                case ign.item of
-                    IPC c ->
-                        { ign | item = IPR { amount = "0", kindSelector = Input.dropMenu Nothing (SetResourceKind dir) } }
-
-                    IPR r ->
-                        { ign | item = IPC "Custom", paidAt = ign.paidAt, direction = dir }
-            )
-        )
-
-
-updateCustom : TradeDirection -> CustomTrade -> NextTradeState -> NextTradeState
-updateCustom dir ct =
-    liftToState
-        (transformTerm dir
-            (\ign ->
-                case ign.item of
-                    IPC c ->
-                        { ign | item = IPC ct }
-
-                    IPR r ->
-                        ign
-            )
-        )
-
-
-updateIPRMenu : Input.SelectMsg ResourceSpec -> InProgressResource -> InProgressResource
-updateIPRMenu msg resource =
-    { resource | kindSelector = Input.updateSelection msg resource.kindSelector }
-
-
-setTermValidation : TradeDirection -> Maybe String -> NextTradeState -> NextTradeState
-setTermValidation dir msg =
-    liftToState (transformTerm dir (\t -> { t | validationMsg = msg }))
-
-
-updateInProgressResource :
-    TradeDirection
-    -> (InProgressResource -> InProgressResource)
-    -> NextTradeState
-    -> NextTradeState
-updateInProgressResource dir fn =
-    liftToState
-        (transformTerm dir
-            (\term ->
-                case term.item of
-                    IPR resource ->
-                        { term | item = IPR (fn resource) }
-
-                    IPC custom ->
-                        term
-            )
-        )
-
-
-updateKindMenu : TradeDirection -> Input.SelectMsg ResourceSpec -> NextTradeState -> NextTradeState
-updateKindMenu dir msg =
-    updateInProgressResource dir (updateIPRMenu msg)
-
-parseStringToInt : String -> Result String Int
-parseStringToInt s = 
-    case String.toInt s of
-        Just i ->
-            Ok i
-
-        Nothing ->
-            Err "Amount must be an integer"
-
-validateAmount : String -> Result String Int
-validateAmount amount =
-    case String.toInt amount of
-        Just i ->
-            validate (notNegative "Amount") << validate (notZero "Amount") <| Ok i
-
-        Nothing ->
-            Err "Amount must be an integer"
-
-
-updateAmount : TradeDirection -> String -> NextTradeState -> NextTradeState
-updateAmount dir amount =
-    updateInProgressResource dir (\r -> { r | amount = amount }) >> setTermValidation dir Nothing
-
-
-updateTurn : TradeDirection -> String -> NextTradeState -> NextTradeState
-updateTurn dir paidAt =
-    liftToState
-        (transformTerm dir (\term -> { term | paidAt = paidAt }))
-        >> setTermValidation dir Nothing
-
-
-type NextTradeState
-    = None
-    | ChooseFaction
-    | InProgress InProgressTrade
-
-
-notGreater : String -> Int -> Int -> Maybe String
-notGreater name k i =
-    if i > k then
-        Just (name ++ " must not be greater than " ++ toString k)
-
-    else
-        Nothing
-
-
-notNegative : String -> Int -> Maybe String
-notNegative name i =
-    if i < 0 then
-        Just (name ++ " must not be negative")
-
-    else
-        Nothing
-
-
-notZero : String -> Int -> Maybe String
-notZero name i =
-    if i == 0 then
-        Just (name ++ " must not be zero")
-
-    else
-        Nothing
-
-
-parseTurn : Model -> String -> Result String Int
-parseTurn model turnString =
-    (case String.startsWith "+" turnString of
-        True ->
-            Result.map (\t -> t + model.currentTurn) (parseStringToInt turnString)
-
-        False ->
-            parseStringToInt turnString
-    )
-        |> validate (notNegative "Turn")
-        |> validate (notGreater "Turn" 6)
-
-
-finishTerm : Model -> InProgressTradeTerm -> Result InProgressTradeTerm TradeTerm
-finishTerm model iptt =
-    Result.mapError (\msg -> { iptt | validationMsg = Just msg })
-        (case iptt.item of
-            IPR resource ->
-                let
-                    spec =
-                        maybeToResult (Input.selected resource.kindSelector) "No resource kind selected"
-
-                    amount =
-                        validateAmount resource.amount
-
-                    paidAt =
-                        parseTurn model iptt.paidAt
-                in
-                Result.map3 (\s a p -> { item = TIResource (mkResource a s.kind s.size), paidAt = p }) spec amount paidAt
-
-            IPC custom ->
-                let
-                    paidAt =
-                        parseTurn model iptt.paidAt
-                in
-                Result.map (\p -> { item = Custom custom, paidAt = p }) paidAt
-        )
-
-
-appendGiven term trade =
-    { trade | termsGiven = trade.termsGiven ++ term }
-
-
-appendRecieved term trade =
-    { trade | termsRecieved = trade.termsRecieved ++ term }
-
-
-finishTrade : Model -> InProgressTrade -> Trade
-finishTrade model ipt =
-    ipt.tradeInProgress
-
-
-finishTermForDir : Model -> TradeDirection -> InProgressTrade -> InProgressTrade
-finishTermForDir model dir ipt =
-    let
-        trade =
-            ipt.tradeInProgress
-    in
-    case dir of
-        Given ->
-            case finishTerm model ipt.inProgressTermGiven of
-                Ok term ->
-                    { ipt | tradeInProgress = appendGiven [ term ] trade }
-
-                Err ipterm ->
-                    { ipt | inProgressTermGiven = ipterm }
-
-        Recieved ->
-            case finishTerm model ipt.inProgressTermRecieved of
-                Ok term ->
-                    { ipt | tradeInProgress = appendRecieved [ term ] trade }
-
-                Err ipterm ->
-                    { ipt | inProgressTermRecieved = ipterm }
-
-
-toTrade : Model -> NextTradeState -> List Trade
-toTrade model state =
-    case state of
-        None ->
-            []
-
-        ChooseFaction ->
-            []
-
-        InProgress inProgress ->
-            [ finishTrade model inProgress ]
 
 
 type TradeDirection
@@ -468,20 +186,15 @@ type Msg
     | ChangeTurn Int
     | DeleteTrade Trade
     | DeleteTradeInProgress
+    | ChangeTradeString String
     | CompleteTrade
-    | StartTrade
-    | SelectTradeFaction Faction
-    | ToggleTermMode TradeDirection
-    | SetCustomTerm TradeDirection CustomTrade
-    | SetResourceKind TradeDirection (Input.SelectMsg ResourceSpec)
-    | SetResourceAmount TradeDirection String
-    | SetTermTurn TradeDirection String
-    | CompleteTerm TradeDirection
 
 
 type alias Model =
     { trades : List Trade
     , resources : List Resource
     , currentTurn : Int
-    , nextTrade : NextTradeState
+    , nextTradeString : String
+    , nextTrade : Maybe Trade
+    , nextTradeValid : Bool
     }

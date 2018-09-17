@@ -1,5 +1,7 @@
-module Sliderule.Core exposing (..)
+module Sliderule.Core exposing (Style(..), Variation(..), black, cubeSvg, currentTurnDiv, emptyModel, factionButton, factionNameplate, factionStyle, fullCenter, header, hover, init, itemView, main, makeDivider, makeFactionPicker, mkResourceView, obligationView, octagonSvg, owedForFaction, owedItemView, resourceChoice, resourceColor, resourceDrawing, resourceStyle, resourceText, resourceView, rgb, style, stylesheet, subs, termDiv, termsDiv, tradeHtml, tradeInputStyle, tradeView, turnLabledTrade, update, updatePure, view, viewWithTitle, white)
 
+import Browser as Browser
+import Color018 as Rgb
 import Element exposing (..)
 import Element.Attributes exposing (..)
 import Element.Events exposing (..)
@@ -7,27 +9,31 @@ import Element.Input as Input
 import Geometry.Svg as Geo
 import Html exposing (Html)
 import Html.Attributes as Attr
-import Browser as Browser
 import Maybe as Maybe
 import Point2d exposing (Point2d)
 import Polygon2d exposing (Polygon2d)
-import Sliderule.Util exposing (..)
+import Sliderule.TradeParser exposing (..)
 import Sliderule.Types exposing (..)
+import Sliderule.Util exposing (..)
 import Style as Style
 import Style.Border as Border
 import Style.Color as Color
+import Style.Filter as Filter
 import Style.Font as Font
 import Style.Shadow as Shadow
 import Svg exposing (Svg)
 import Svg.Attributes as Attributes
-import Color018 as Rgb
 
 
 main : Program () Model Msg
-main = Browser.document { init = \f -> init, view = viewWithTitle, update = update, subscriptions = subs }
+main =
+    Browser.document { init = \f -> init, view = viewWithTitle, update = update, subscriptions = subs }
+
 
 viewWithTitle : Model -> Browser.Document Msg
-viewWithTitle model = {title = "Sliderule Confluence", body = [view model]}
+viewWithTitle model =
+    { title = "Sliderule Confluence", body = [ view model ] }
+
 
 subs : Model -> Sub Msg
 subs model =
@@ -74,7 +80,9 @@ emptyModel =
     { trades = []
     , resources = []
     , currentTurn = 1
-    , nextTrade = None
+    , nextTradeString = ""
+    , nextTrade = Nothing
+    , nextTradeValid = True
     }
 
 
@@ -100,42 +108,21 @@ updatePure msg model =
         DeleteTrade t ->
             { model | trades = List.filter (\tr -> t /= tr) model.trades }
 
-        StartTrade ->
-            { model | nextTrade = ChooseFaction }
-
-        SelectTradeFaction f ->
-            { model
-                | nextTrade =
-                    InProgress
-                        { tradeInProgress = { faction = f, termsGiven = [], termsRecieved = [], turnExecuted = model.currentTurn }
-                        , inProgressTermGiven = defaultTerm model.currentTurn Given
-                        , inProgressTermRecieved = defaultTerm model.currentTurn Recieved
-                        }
-            }
-
-        DeleteTradeInProgress ->
-            { model | nextTrade = None }
-
         CompleteTrade ->
-            { model | nextTrade = None, trades = model.trades ++ toTrade model model.nextTrade }
+            case model.nextTradeValid of
+                True ->
+                    { model | nextTrade = Nothing, nextTradeString = "", trades = model.trades ++ maybeToList model.nextTrade }
 
-        SetResourceKind dir select ->
-            { model | nextTrade = updateKindMenu dir select model.nextTrade }
+                False ->
+                    model
 
-        SetResourceAmount dir amountStr ->
-            { model | nextTrade = updateAmount dir amountStr model.nextTrade }
+        ChangeTradeString s ->
+            case parseTrade model.currentTurn s of
+                Just trade ->
+                    { model | nextTrade = Just trade, nextTradeString = s, nextTradeValid = True }
 
-        SetTermTurn dir turnString ->
-            { model | nextTrade = updateTurn dir turnString model.nextTrade }
-
-        SetCustomTerm dir str ->
-            { model | nextTrade = updateCustom dir str model.nextTrade }
-
-        CompleteTerm dir ->
-            { model | nextTrade = liftToState (finishTermForDir model dir) model.nextTrade }
-
-        ToggleTermMode dir ->
-            { model | nextTrade = toggleTerm dir model.nextTrade }
+                Nothing ->
+                    { model | nextTradeString = s, nextTradeValid = False }
 
         other ->
             model
@@ -174,19 +161,35 @@ type Style
     | ObligationHeader
     | YouOweStyle
     | YoureOwedStyle
+    | TradeInputStyle
+    | InvalidTradeInputStyle
+    | UnsubmittedTradeStyle
 
 
 type Variation
     = DefaultVar
 
-black = Rgb.black
-white = Rgb.white
 
-style = Style.style
-hover = Style.hover
+black =
+    Rgb.black
+
+
+white =
+    Rgb.white
+
+
+style =
+    Style.style
+
+
+hover =
+    Style.hover
+
 
 rgb : Int -> Int -> Int -> Style.Color
-rgb r g b = Style.rgb (toFloat r/255) (toFloat g/255) (toFloat b/255)
+rgb r g b =
+    Style.rgb (toFloat r / 255) (toFloat g / 255) (toFloat b / 255)
+
 
 stylesheet =
     Style.styleSheet
@@ -203,6 +206,16 @@ stylesheet =
             ]
         , style TradeTermStyle
             []
+        , style TradeInputStyle
+            [ Border.solid
+            , Border.all 1
+            , Color.border (toStyle Rgb.black)
+            ]
+        , style InvalidTradeInputStyle
+            [ Border.solid
+            , Border.all 1
+            , Color.border (toStyle Rgb.red)
+            ]
         , style TradePaneStyle
             [ Border.right 3
             , Border.solid
@@ -228,6 +241,11 @@ stylesheet =
         , factionStyle Yengii (Rgb.rgb 91 91 91) white
         , style TradeStyle
             [ Shadow.simple
+            , Color.background (rgb 240 240 240)
+            ]
+        , style UnsubmittedTradeStyle
+            [ Filter.opacity 70
+            , Shadow.simple
             , Color.background (rgb 240 240 240)
             ]
         , style ObligationPaneStyle
@@ -335,8 +353,18 @@ view model =
                                     ]
                                 )
                             ]
-                        , inProgressTradeView model
-                        , column TradesStyle [ spacing 1 ] (tradeView model.trades)
+                        , row ContainerStyle
+                            [ spacing 5, width fill, height (px 30) ]
+                            [ Input.text (tradeInputStyle model.nextTradeValid)
+                                [ center, spacing 3, height (px 32), width (percent 98) ]
+                                { onChange = ChangeTradeString
+                                , value = model.nextTradeString
+                                , label = Input.hiddenLabel "Trade Input"
+                                , options = []
+                                }
+                            , button AddButtonStyle [ alignRight, onClick CompleteTrade, padding 3 ] (text "Submit")
+                            ]
+                        , column TradesStyle [ spacing 1 ] (tradeView model.nextTrade model.trades)
                         ]
                     )
                 , el InfoPaneStyle
@@ -350,6 +378,15 @@ view model =
                     )
                 ]
             ]
+
+
+tradeInputStyle : Bool -> Style
+tradeInputStyle t =
+    if t then
+        TradeInputStyle
+
+    else
+        InvalidTradeInputStyle
 
 
 obligationView : Element Style Variation Msg -> (Model -> List ItemOwed) -> Model -> Element Style Variation Msg
@@ -369,7 +406,7 @@ obligationView headerEl obFn model =
                ]
 
 
-owedForFaction : List (Faction, (List ItemOwed)) -> List (Element Style Variation Msg)
+owedForFaction : List ( Faction, List ItemOwed ) -> List (Element Style Variation Msg)
 owedForFaction itemsGroupedByFaction =
     List.map
         (\fact ->
@@ -400,8 +437,13 @@ currentTurnDiv turn =
     el TurnCounterStyle [] (text ("Turn: " ++ String.fromInt turn ++ "/6"))
 
 
-tradeView : List Trade -> List (Element Style Variation Msg)
-tradeView trades =
+tradeView : Maybe Trade -> List Trade -> List (Element Style Variation Msg)
+tradeView nextTrade remTrades =
+    let
+        trades =
+            List.map (Tuple.pair TradeStyle) remTrades
+                ++ List.map (Tuple.pair UnsubmittedTradeStyle) (maybeToList nextTrade)
+    in
     List.reverse <|
         List.map Tuple.first
             (intersperseSections
@@ -416,18 +458,22 @@ makeDivider turn =
     ( el TurnMarker [ width fill ] (text ("Turn " ++ String.fromInt turn)), turn )
 
 
-turnLabledTrade : (Trade -> Msg) -> Trade -> ( Element Style Variation Msg, Turn )
+turnLabledTrade : (Trade -> Msg) -> ( Style, Trade ) -> ( Element Style Variation Msg, Turn )
 turnLabledTrade act trade =
-    ( tradeHtml act trade, trade.turnExecuted )
+    ( tradeHtml act trade, (Tuple.second trade).turnExecuted )
 
 
 factionNameplate faction =
     el (FactionNameStyle faction) [ center, padding 5, width (percent 17) ] (text (getFactionName faction))
 
 
-tradeHtml : (Trade -> Msg) -> Trade -> Element Style Variation Msg
-tradeHtml deleteAction trade =
-    row TradeStyle
+tradeHtml : (Trade -> Msg) -> ( Style, Trade ) -> Element Style Variation Msg
+tradeHtml deleteAction tradeAndStyle =
+    let
+        trade =
+            Tuple.second tradeAndStyle
+    in
+    row (Tuple.first tradeAndStyle)
         [ alignLeft ]
         [ factionNameplate trade.faction
         , el TermText [ paddingTop 8, paddingLeft 4, width (percent 9) ] (text "You Paid")
@@ -475,155 +521,6 @@ itemView item =
             [ paragraph TextStyle [ padding 3, width (px 125) ] [ text customTrade ] ]
 
 
-inProgressTradeView : Model -> Element Style Variation Msg
-inProgressTradeView model =
-    case model.nextTrade of
-        InProgress inProgressTrade ->
-            column ContainerStyle
-                []
-                [ tradeHtml (\n -> DeleteTradeInProgress) inProgressTrade.tradeInProgress
-                , row ContainerStyle
-                    [ width fill, padding 2 ]
-                    [ el ContainerStyle [ width (percent 25) ] empty
-                    , el ContainerStyle [ width (percent 30) ] (addTermsView Given model inProgressTrade)
-                    , el ContainerStyle [ width (percent 5) ] empty
-                    , el ContainerStyle [ width (percent 30) ] (addTermsView Recieved model inProgressTrade)
-                    , el ContainerStyle
-                        [ width (percent 10), height fill ]
-                        (button AddButtonStyle [ width fill, onClick CompleteTrade ] (text "Complete"))
-                    ]
-                ]
-
-        None ->
-            button NewTradeButton
-                [ center, onClick StartTrade, width (px 100), height (px 40), padding 10 ]
-                (text "New Trade")
-
-        ChooseFaction ->
-            el ContainerStyle [ center, width (percent 50) ] makeFactionPicker
-
-
-addTermsView : TradeDirection -> Model -> InProgressTrade -> Element Style Variation Msg
-addTermsView dir model inProgressTrade =
-    el AddTermStyle
-        [ padding 3, width fill ]
-        (addTermView model dir (getTerm dir inProgressTrade))
-
-
-resourceTermControls : Model -> TradeDirection -> InProgressResource -> List (Element Style Variation Msg)
-resourceTermControls model dir r =
-    [ Input.text TextFieldStyle
-        [ width (px 25) ]
-        { onChange = SetResourceAmount dir
-        , value = r.amount
-        , label = Input.hiddenLabel "Amount"
-        , options = []
-        }
-    , Input.select ResourceSelectStyle
-        []
-        { label = Input.hiddenLabel "Kind"
-        , with = r.kindSelector
-        , max = 11
-        , options = []
-        , menu =
-            Input.menu SubMenu
-                []
-                [ resourceChoice Green SmallCube
-                , resourceChoice Brown SmallCube
-                , resourceChoice White SmallCube
-                , resourceChoice Black LargeCube
-                , resourceChoice Yellow LargeCube
-                , resourceChoice Blue LargeCube
-                , resourceChoice Ultra Octa
-                , resourceChoice Wild SmallCube
-                , resourceChoice Wild LargeCube
-                , resourceChoice Any SmallCube
-                , resourceChoice Any LargeCube
-                , resourceChoice VP Octa
-                , resourceChoice Ship SmallCube
-                ]
-        }
-    ]
-
-
-isIPC : InProgressItem -> Bool
-isIPC ipi =
-    case ipi of
-        IPR r ->
-            False
-
-        IPC c ->
-            True
-
-
-addTermView : Model -> TradeDirection -> InProgressTradeTerm -> Element Style Variation Msg
-addTermView model dir term =
-    let
-        controls =
-            case term.item of
-                IPR r ->
-                    resourceTermControls model dir r
-
-                IPC s ->
-                    [ Input.text TextFieldStyle
-                        [ width fill, height (px 40) ]
-                        { onChange = SetCustomTerm dir
-                        , value = s
-                        , label = Input.hiddenLabel "Custom Trade"
-                        , options = []
-                        }
-                    ]
-    in
-    row AddTermStyle
-        [ center, verticalCenter ]
-        (controls
-            ++ [ el TermText [ verticalCenter, width (px 20) ] (text "@")
-               , Input.text TextFieldStyle
-                    []
-                    { onChange = SetTermTurn dir
-                    , value = term.paidAt
-                    , label = Input.hiddenLabel "Turn Paid"
-                    , options = []
-                    }
-               , el ContainerStyle
-                    []
-                    (button ToggleButtonStyle
-                        [ width (px 20), height (px 20), onClick (ToggleTermMode dir) ]
-                        (fullCenter
-                            (text
-                                (if isIPC term.item then
-                                    "R"
-
-                                 else
-                                    "C"
-                                )
-                            )
-                        )
-                    )
-               , el ContainerStyle
-                    []
-                    (button AddButtonStyle
-                        [ width (px 20), height (px 20), onClick (CompleteTerm dir) ]
-                        (fullCenter (text "✔"))
-                    )
-               , el ContainerStyle
-                    []
-                    (button DeleteButtonStyle
-                        [ width (px 20), height (px 20), onClick (CompleteTerm dir) ]
-                        (fullCenter (text "❌"))
-                    )
-               ]
-        )
-        |> below
-            [ case term.validationMsg of
-                Just msg ->
-                    el ValidationStyle [ padding 4 ] (text msg)
-
-                Nothing ->
-                    empty
-            ]
-
-
 fullCenter : Element Style Variation Msg -> Element Style Variation Msg
 fullCenter elem =
     el ContainerStyle [ center, verticalCenter ] elem
@@ -632,6 +529,10 @@ fullCenter elem =
 resourceChoice : ResourceKind -> ResourceSize -> Input.Choice ResourceSpec Style Variation Msg
 resourceChoice kind size =
     Input.choice { kind = kind, size = size } (mkResourceView kind size)
+
+
+
+-- This code left for use in game-creation UI
 
 
 makeFactionPicker : Element Style Variation Msg
@@ -662,7 +563,7 @@ makeFactionPicker =
 factionButton : Faction -> Element Style Variation Msg
 factionButton f =
     button (FactionNameStyle f)
-        [ padding 5, width fill, onClick (SelectTradeFaction f) ]
+        [ padding 5, width fill ]
         (text (getFactionName f))
 
 
@@ -702,6 +603,9 @@ resourceColor kind =
         Ship ->
             Rgb.rgb 0 0 0
 
+        NoKind ->
+            Rgb.rgb 0 0 0
+
 
 resourceText : ResourceKind -> ResourceSize -> String
 resourceText kind size =
@@ -723,7 +627,7 @@ resourceDrawing : ResourceSize -> ResourceKind -> Element Style Variation Msg
 resourceDrawing size kind =
     case ( size, kind ) of
         ( _, Ship ) ->
-            image ShipImageStyle [ width (px 22), height (px 22) ] { src = "resources/spaceship.png", caption = "spaceship" }
+            image ShipImageStyle [ width (px 22), height (px 22) ] { src = "../../resources/spaceship.png", caption = "spaceship" }
 
         ( SmallCube, _ ) ->
             html (cubeSvg 10 10 (resourceColor kind) (resourceText kind size))
@@ -733,6 +637,9 @@ resourceDrawing size kind =
 
         ( Octa, _ ) ->
             html (octagonSvg 8 12 (resourceColor kind) (resourceText kind size))
+
+        ( _, _ ) ->
+            text "?"
 
 
 mkResourceView : ResourceKind -> ResourceSize -> Element Style Variation Msg

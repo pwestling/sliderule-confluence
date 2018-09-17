@@ -1,21 +1,33 @@
-module Sliderule.Util exposing (..)
+module Sliderule.Util exposing (colorToCssRgb, expand, flatMap, intersperseSections, isJust, isNothing, isOk, join, maybeToList, maybeToResult, partition, resultToList, resultToMaybe, sToI, splitWhile, toString, toStringF, toStyle, validate)
+
 import Color018 as Rgb
-import Style as Color 
+import Style as Color
 import Style.Color as SC
 
+
 toStyle : Rgb.Color -> Color.Color
-toStyle rgb = let record = Rgb.toRgb rgb in 
-                (Color.rgb (toFloat (record.red) / 255) (toFloat (record.green) / 255) (toFloat (record.blue) / 255))
+toStyle rgb =
+    let
+        record =
+            Rgb.toRgb rgb
+    in
+    Color.rgb (toFloat record.red / 255) (toFloat record.green / 255) (toFloat record.blue / 255)
+
 
 sToI : String -> Maybe Int
 sToI =
     String.toInt
 
+
 toString : Int -> String
-toString = String.fromInt
+toString =
+    String.fromInt
+
 
 toStringF : Float -> String
-toStringF = String.fromFloat
+toStringF =
+    String.fromFloat
+
 
 validate : (a -> Maybe b) -> Result b a -> Result b a
 validate pred r =
@@ -40,6 +52,16 @@ maybeToResult m b =
 
         Nothing ->
             Err b
+
+
+resultToMaybe : Result b a -> Maybe a
+resultToMaybe m =
+    case m of
+        Ok a ->
+            Just a
+
+        Err b ->
+            Nothing
 
 
 isJust : Maybe a -> Bool

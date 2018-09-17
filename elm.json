@@ -8,6 +8,7 @@
     "dependencies": {
         "direct": {
             "Gizra/elm-compat-019": "1.0.0",
+            "Punie/elm-parser-extras": "1.0.0",
             "elm/browser": "1.0.0",
             "elm/core": "1.0.0",
             "elm/html": "1.0.0",
