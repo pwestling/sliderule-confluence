@@ -337,7 +337,13 @@ view model =
             [ header
             , row AppStyle
                 [ width fill, height fill ]
-                [ el TradePaneStyle
+                [ tradePane model
+                , infoPane model
+                ]
+            ]
+
+
+tradePane model = el TradePaneStyle
                     [ width fill, height fill ]
                     (column ContainerStyle
                         [ spacing 10 ]
@@ -367,18 +373,16 @@ view model =
                         , column TradesStyle [ spacing 1 ] (tradeView model.nextTrade model.trades)
                         ]
                     )
-                , el InfoPaneStyle
+
+infoPane model = el InfoPaneStyle
                     [ width fill, height fill ]
                     (column ContainerStyle
                         [ width fill, height fill, spacing 3 ]
                         [ row SubHeader [ width fill ] [ el InfoLabel [ height (px 30), padding 5 ] (text "Info") ]
-                        , el ContainerStyle [ width fill, height (percent 33) ] (obligationView (el YouOweStyle [ height fill ] (text "You Owe")) youOwe model)
-                        , el ContainerStyle [ width fill, height (percent 33) ] (obligationView (el YoureOwedStyle [ height fill ] (text "You Are Owed")) youAreOwed model)
+                        , el ContainerStyle [ width fill, height (percent 45) ] (obligationView (el YouOweStyle [ height fill ] (text "You Owe")) youOwe model)
+                        , el ContainerStyle [ width fill, height (percent 45) ] (obligationView (el YoureOwedStyle [ height fill ] (text "You Are Owed")) youAreOwed model)
                         ]
                     )
-                ]
-            ]
-
 
 tradeInputStyle : Bool -> Style
 tradeInputStyle t =
@@ -513,7 +517,7 @@ itemView : TradeItem -> List (Element Style Variation Msg)
 itemView item =
     case item of
         TIResource resource ->
-            [ el TermText [ padding 3, width (px 25) ] (text (String.fromInt resource.amount))
+            [ el TermText [ padding 3, width (px 50) ] (text (String.fromInt resource.amount))
             , resourceView resource
             ]
 
