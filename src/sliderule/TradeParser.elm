@@ -43,7 +43,7 @@ factionParser : Parser Faction
 factionParser =
     oneOf
         [ prefixMatch Ktz "Kt"
-        , prefixMatch Kjas "Kj"
+        , prefixMatch Kjas "J"
         , prefixMatch Caylion "C"
         , prefixMatch Faderan "F"
         , prefixMatch Imdril "I"
